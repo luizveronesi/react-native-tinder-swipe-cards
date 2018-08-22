@@ -120,13 +120,16 @@ export default class SwipeCards extends Component {
     stackOffsetY: 0,
     showYup: true,
     showMaybe: true,
+    showDown: true,
     showNope: true,
     handleYup: (card) => null,
     handleMaybe: (card) => null,
+    handleDown: (card) => null,
     handleNope: (card) => null,
     nopeText: "Nope!",
     maybeText: "Maybe!",
     yupText: "Yup!",
+    downText: "Down!",
     onClickHandler: () => { alert('tap') },
     onDragStart: () => {},
     onDragRelease: () => {},
@@ -202,6 +205,7 @@ export default class SwipeCards extends Component {
           const hasMovedRight = hasSwipedHorizontally && this.state.pan.x._value > 0
           const hasMovedLeft = hasSwipedHorizontally && this.state.pan.x._value < 0
           const hasMovedUp = hasSwipedVertically && this.state.pan.y._value < 0
+          const hasMovedDown = hasSwipedVertically && this.state.pan.y._value > 0
 
           if (hasMovedRight) {
             cancelled = this.props.handleYup(this.state.card);
@@ -209,6 +213,8 @@ export default class SwipeCards extends Component {
             cancelled = this.props.handleNope(this.state.card);
           } else if (hasMovedUp && this.props.hasMaybeAction) {
             cancelled = this.props.handleMaybe(this.state.card);
+          } else if (hasMovedDown && this.props.hasMaybeAction) {
+            cancelled = this.props.handleDown(this.state.card);
           } else {
             cancelled = true
           }
@@ -269,6 +275,19 @@ export default class SwipeCards extends Component {
       );
     this.props.cardRemoved(currentIndex[this.guid]);
   }
+
+_forceDownSwipe() {
+  this.cardAnimation = Animated.timing(this.state.pan, {
+    toValue: { x: 0, y: -500 },
+  }).start(status => {
+    if (status.finished) this._advanceState();
+    else this._resetState();
+
+    this.cardAnimation = null;
+  }
+    );
+  this.props.cardRemoved(currentIndex[this.guid]);
+}
 
   _forceRightSwipe() {
     this.cardAnimation = Animated.timing(this.state.pan, {
@@ -510,6 +529,34 @@ export default class SwipeCards extends Component {
     return null;
   }
 
+  renderDown() {
+    if (!this.props.hasMaybeAction) return null;
+
+    let {pan} = this.state;
+
+    let maybeOpacity = pan.y.interpolate({ inputRange: [-SWIPE_THRESHOLD, -(SWIPE_THRESHOLD/2)], outputRange: [1, 0], extrapolate: 'clamp' });
+    let maybeScale = pan.x.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD], outputRange: [0, 1, 0], extrapolate: 'clamp' });
+    let animatedMaybeStyles = { transform: [{ scale: maybeScale }], opacity: maybeOpacity };
+
+    if (this.props.renderDown) {
+      return this.props.renderDown(pan);
+    }
+
+
+    if (this.props.showDown) {
+
+      const inner = this.props.maybeDown
+        ? this.props.maybeDown
+        : <Text style={[styles.maybeText, this.props.downTextStyle]}>{this.props.downText}</Text>
+
+      return <Animated.View style={[styles.maybe, this.props.maybeStyle, animatedMaybeStyles]}>
+                {inner}
+              </Animated.View>;
+    }
+
+    return null;
+  }
+
   renderYup() {
     let {pan} = this.state;
 
@@ -542,6 +589,7 @@ export default class SwipeCards extends Component {
         {this.renderNope()}
         {this.renderMaybe()}
         {this.renderYup()}
+        {this.renderDown()}
       </View>
     );
   }
